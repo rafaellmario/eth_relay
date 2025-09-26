@@ -1,0 +1,19 @@
+# ESP-IDF built binaries and build artifacts
+build/
+build_*/
+sdkconfig
+
+# idf-ci build run output (if using idf-ci)
+build_summary_*.xml
+app_info_*.txt
+size_info_*.txt
+
+# Python-related generated files
+.pytest_cache/
+__pycache__/
+
+# pytest-embedded log folder (if using pytest-embedded)
+pytest_embedded_log/
+
+# idf-component-manager output
+dependencies.lock
