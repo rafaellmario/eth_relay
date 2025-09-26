@@ -106,8 +106,8 @@ uint16_t tca_get(i2c_master_dev_handle_t device)
 esp_err_t tca9555_init()
 {
     esp_err_t err  = ESP_OK;
-    // ----------------------------------------------
-    // Gpio and interruption
+    // -----------------------------------------------------------
+    // Configure a pin for TCA input port change interruption
     gpio_config_t ioConfig = 
     {
         .pin_bit_mask = (1ULL << TCA9555_INTR_PIN),
@@ -116,6 +116,7 @@ esp_err_t tca9555_init()
         .pull_down_en = GPIO_PULLDOWN_DISABLE,
         .intr_type = GPIO_INTR_NEGEDGE
     };
+    
     err = gpio_config(&ioConfig);
 
     err = gpio_install_isr_service(ESP_INTR_FLAG_LEVEL1);

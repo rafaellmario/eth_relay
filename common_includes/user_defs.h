@@ -18,7 +18,6 @@ struct failure_check_t
 };
 
 
-
 typedef union failures_reg_t
 {
     uint16_t all;

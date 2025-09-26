@@ -26,6 +26,8 @@
 #include "user_i2c.h"
 #include "tca9555.h"
 
+#include "user_ethernet.h"
+
 #include "user_defs.h"
 
 QueueHandle_t i2C_access_queue;
@@ -54,6 +56,9 @@ void app_main(void)
     // TCA initialization 
     ESP_LOGI(TAG,"I2C initialization.");
     ESP_ERROR_CHECK(tca9555_init());
+
+    // Ethernet initialization
+    ESP_ERROR_CHECK(ethernet_setup());
     
     while(true)
     {
