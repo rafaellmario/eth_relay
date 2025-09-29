@@ -27,41 +27,94 @@
 #include "tca9555.h"
 
 #include "user_ethernet.h"
+#include "user_http.h"
 
 #include "user_defs.h"
 
-QueueHandle_t i2C_access_queue;
+QueueHandle_t i2C_access_queue;  // Access control to i2c
+QueueHandle_t http_tca_out_get_queue; // Get input status
+QueueHandle_t http_tca_inp_get_queue; // Get input status
+
 static const char* TAG = "MAIN";
 
 failure_chain_t check_chain;
 
 void app_main(void)
 {
+    esp_err_t err = ESP_OK;
+    check_chain.all = false;
+
     // ----------------------------------------------
     // NVS initialization
-    esp_err_t err = nvs_flash_init();
+    err = nvs_flash_init();
     if(err == ESP_ERR_NVS_NO_FREE_PAGES || 
        err == ESP_ERR_NVS_NEW_VERSION_FOUND)
     {
         ESP_ERROR_CHECK(nvs_flash_erase());
         err = nvs_flash_init();
     }
-    ESP_ERROR_CHECK(err);
 
-    check_chain.all = false;
-
-    // I2C Bus initialization
-    ESP_LOGI(TAG,"I2C initialization.");
-    ESP_ERROR_CHECK(user_i2c0_init());
-    // TCA initialization 
-    ESP_LOGI(TAG,"I2C initialization.");
-    ESP_ERROR_CHECK(tca9555_init());
-
-    // Ethernet initialization
-    ESP_ERROR_CHECK(ethernet_setup());
+    if(err != ESP_OK)
+    {
+        check_chain.bit.nvs_failure = true; // There is an error on NVS initialization
+        ESP_LOGE(TAG,"%s",esp_err_to_name(err));
+    }
     
+    // ----------------------------------------------
+    // I2C Bus initialization
+    if(check_chain.all == 0)
+    {
+        ESP_LOGI(TAG,"I2C initialization.");
+        err = user_i2c0_init();
+
+        if(err != ESP_OK)
+        {
+            check_chain.bit.i2c_failure = true;     // There is an error on I2C initialization
+            ESP_LOGE(TAG,"%s",esp_err_to_name(err));
+        }
+    }
+    
+    // ----------------------------------------------
+    // TCA initialization 
+    if(check_chain.all == 0)
+    {
+        ESP_LOGI(TAG,"TCA initialization.");
+        err = tca9555_init();
+        if(err != ESP_OK)
+        {
+            check_chain.bit.tca_failure = true; // There is an error on tca initialization
+            ESP_LOGE(TAG,"%s",esp_err_to_name(err));
+        }
+    }
+    
+    // ----------------------------------------------
+    // Ethernet initialization
+    if(check_chain.all == 0)
+    {
+        ESP_LOGI(TAG,"Ethernet initialization.");
+        err = ethernet_setup();
+        if(err != ESP_OK)
+        {
+            check_chain.bit.eth_failure = true; // There is an error on ethernet initialization
+            ESP_LOGE(TAG,"%s",esp_err_to_name(err));
+        }
+    }
+    
+    // ----------------------------------------------
+    // Web server initialization
+    if((check_chain.all == 0) && user_eth_con_status())
+    {
+        start_webserver( );
+    }
+
+
     while(true)
     {
+
+        if(check_chain.all != 0)
+            ESP_LOGE(TAG,"Device initialization failure ");
+
+           
         vTaskDelay(pdMS_TO_TICKS(1000));
     }
 }

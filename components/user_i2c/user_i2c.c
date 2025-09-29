@@ -7,10 +7,12 @@
 #include <stdint.h>
 #include <stdbool.h>
 
+#include "esp_log.h"
+#include "esp_err.h"
+#include "esp_check.h"
+
 #include "driver/gpio.h"
 #include "driver/i2c_master.h"
-#include "esp_err.h"
-#include "esp_log.h"
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -26,6 +28,8 @@ i2c_master_dev_handle_t i2c0_tca_output;
 i2c_master_dev_handle_t i2c0_tca_input;
 
 extern QueueHandle_t i2C_access_queue;
+extern QueueHandle_t http_tca_out_get_queue; // Get input status
+extern QueueHandle_t http_tca_inp_get_queue; // Get input status
 
 // --------------------------------------------------------------------------------------------
 static esp_err_t i2c_attach_device(uint16_t, i2c_master_bus_handle_t, i2c_master_dev_handle_t*);
@@ -44,17 +48,18 @@ esp_err_t user_i2c0_init()
         .glitch_ignore_cnt = 7,
         .flags.enable_internal_pullup = true, 
     };
+
     err = i2c_new_master_bus(&i2cMasterCfg,&i2c0BusHandler);
-    // ESP_LOGI(TAG,"New bus configured.");
+    ESP_RETURN_ON_ERROR(err,TAG,"%s",esp_err_to_name(err));
 
     // Attach TCA outputs
     err = i2c_attach_device(TCA_ADDR_1,i2c0BusHandler,&i2c0_tca_output);
-    // ESP_LOGI(TAG,"TAC_1 attached");
+    ESP_RETURN_ON_ERROR(err,TAG,"%s",esp_err_to_name(err));
 
     // Attach TCA inputs
     err = i2c_attach_device(TCA_ADDR_2,i2c0BusHandler,
                                      &i2c0_tca_input);
-    // ESP_LOGI(TAG,"TAC_2 attached");
+    ESP_RETURN_ON_ERROR(err,TAG,"%s",esp_err_to_name(err));
     
     if(i2c_master_probe(i2c0BusHandler,TCA_ADDR_1,10) == ESP_OK && 
        i2c_master_probe(i2c0BusHandler,TCA_ADDR_2,10) == ESP_OK && 
@@ -65,10 +70,10 @@ esp_err_t user_i2c0_init()
         // Create a queue to access the I2C bus
         i2C_access_queue = xQueueCreate(5,sizeof(i2c_access_ctrl_handle_t));
 
-        // Create an task to control I2C access
-        xTaskCreate(i2c_handle_task,"I2CCtrl",
+        // Create an task to control I2C access, pinned to core 1
+        xTaskCreatePinnedToCore(i2c_handle_task,"I2CCtrl",
             configMINIMAL_STACK_SIZE+1024,
-            NULL,5,NULL);
+            NULL,5,NULL,1);
     }
     else
     {
@@ -105,8 +110,8 @@ static void i2c_handle_task(void* pVParameters)
 {
     i2c_access_ctrl_handle_t i2c_access_handle;
 
-    uint16_t tca_output_status = 0;
-    uint16_t tca_input_status = 0;
+    uint16_t tca_output_status = tca_get(i2c0_tca_output);
+    uint16_t tca_input_status  = tca_get(i2c0_tca_input);
 
     while(true)
     {
@@ -116,17 +121,22 @@ static void i2c_handle_task(void* pVParameters)
         {
             case TCA_INTR_CHANGE:
                 tca_input_status = tca_get(i2c0_tca_input); // Acess I2C device and get input status
-            case TCA_INP_GET:
+                break;
+            case HTTP_TCA_INP_GET:
+                xQueueSend(http_tca_inp_get_queue,&tca_input_status,pdMS_TO_TICKS(300));
                 printf("Input status: %x\n",tca_input_status);
                 break;
-            case TCA_OUT_SET:
-                tca_set(i2c0_tca_output,i2c_access_handle.tca_out_stat); // Acess I2C device and get input status
+
+            case HTTP_TCA_OUT_SET:
+                tca_set(i2c0_tca_output,i2c_access_handle.tca_out_stat); // Acess I2C device and set input status
+                tca_output_status = tca_get(i2c0_tca_output);            // Acess I2C device and get input status
                 break;
-            case TCA_OUT_GET:
-                tca_output_status = tca_get(i2c0_tca_output); // Acess I2C device and get input status
+
+            case HTTP_TCA_OUT_GET:
+                xQueueSend(http_tca_out_get_queue,&tca_output_status,pdMS_TO_TICKS(300));
+                printf("Output status: %x\n",tca_output_status);
                 break;
             default:
-
         };
     }
 }

@@ -35,7 +35,14 @@
         "relay_defs.h": "c",
         "mqtt_client.h": "c",
         "esp_err.h": "c",
-        "queue.h": "c"
+        "queue.h": "c",
+        "tca9555.h": "c",
+        "esp_ds_err.h": "c",
+        "esp_check.h": "c",
+        "stdlib.h": "c",
+        "stdint.h": "c",
+        "user_http.h": "c",
+        "string.h": "c"
     },
     "idf.portWin": "COM7",
     "idf.flashType": "UART"

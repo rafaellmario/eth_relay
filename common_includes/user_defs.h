@@ -14,7 +14,8 @@ struct failure_check_t
     bool eth_failure:1;
     bool mqtt_failure:1;
     bool http_failure:1;
-    uint16_t RSV:13;
+    bool nvs_failure:1;
+    uint16_t RSV:12;
 };
 
 
