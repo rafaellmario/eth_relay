@@ -4,8 +4,6 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-#include "tca9555.h"
-
 #include "freertos/FreeRTOS.h"
 #include "freertos/queue.h"
 
@@ -16,6 +14,7 @@
 #include "esp_err.h"
 
 #include "user_i2c.h"
+#include "tca9555.h"
 
 extern i2c_master_dev_handle_t i2c0_tca_output;
 extern i2c_master_dev_handle_t i2c0_tca_input;
@@ -83,8 +82,6 @@ void tca_set(i2c_master_dev_handle_t device, uint16_t bits)
 // Get TCA pins states
 // - device: Device handler for communitation with
 // - bits: 16 bits register where each bit control the output level
-// -- 1: Set for low level
-// -- 0: Keep the output in previous state
 uint16_t tca_get(i2c_master_dev_handle_t device)
 {
     uint8_t  address =  TCA9555_IN_PORT0;
@@ -106,6 +103,7 @@ uint16_t tca_get(i2c_master_dev_handle_t device)
 esp_err_t tca9555_init()
 {
     esp_err_t err  = ESP_OK;
+    i2c_access_ctrl_handle_t tca_default;
     // -----------------------------------------------------------
     // Configure a pin for TCA input port change interruption
     gpio_config_t ioConfig = 
@@ -124,12 +122,21 @@ esp_err_t tca9555_init()
     // Create an interruption service routine to handle the port change interruption
     err = gpio_isr_handler_add(TCA9555_INTR_PIN,tca_change_isr_handler,NULL);
     
-    // Config TCA1 as input buffer
-    err = tca_config_mode(i2c0_tca_output, 0x0000);  // Define all pins as outputs
-    tca_set(i2c0_tca_output,0x0000); // Set all pins to zero 
+    // Config TCA on 0x20 as input buffer
+    tca_default.i2c_action = TCA_CFG_OUTPUT;
+    xQueueSendToFront(i2C_access_queue,&tca_default,portMAX_DELAY);
 
-    // Config TCA2 as output buffer
-    err = tca_config_mode(i2c0_tca_input , 0xFFFF);  // Define all pins as inputs
-    
+    // Initialize the inputs on low 
+    tca_default.i2c_action = TCA_OUT_INIT;
+    xQueueSendToFront(i2C_access_queue,&tca_default,portMAX_DELAY);
+
+    // Config TCA on 0x27 as input buffer
+    tca_default.i2c_action = TCA_CFG_INPUT;
+    xQueueSendToFront(i2C_access_queue,&tca_default,pdMS_TO_TICKS(50));
+
+    // Update input status on 
+    tca_default.i2c_action = TCA_REFRESH_INP;
+    xQueueSendToFront(i2C_access_queue,&tca_default,pdMS_TO_TICKS(50));
+
     return err;
 }

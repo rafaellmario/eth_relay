@@ -20,6 +20,7 @@
 
 #include "user_i2c.h"
 #include "tca9555.h"
+#include "user_mqtt.h"
 
 static const char* TAG = "I2C";
 
@@ -32,10 +33,12 @@ extern QueueHandle_t http_tca_out_get_queue; // Get input status
 extern QueueHandle_t http_tca_inp_get_queue; // Get input status
 
 // --------------------------------------------------------------------------------------------
+//
 static esp_err_t i2c_attach_device(uint16_t, i2c_master_bus_handle_t, i2c_master_dev_handle_t*);
-static void i2c_handle_task(void* pVParameters);
+static void      i2c_handle_task(void* pVParameters);
 
 // --------------------------------------------------------------------------------------------
+// 
 esp_err_t user_i2c0_init()
 {
     esp_err_t err = ESP_OK;
@@ -72,7 +75,7 @@ esp_err_t user_i2c0_init()
 
         // Create an task to control I2C access, pinned to core 1
         xTaskCreatePinnedToCore(i2c_handle_task,"I2CCtrl",
-            configMINIMAL_STACK_SIZE+1024,
+            configMINIMAL_STACK_SIZE+2048,
             NULL,5,NULL,1);
     }
     else
@@ -109,9 +112,9 @@ static esp_err_t i2c_attach_device(uint16_t device_address, i2c_master_bus_handl
 static void i2c_handle_task(void* pVParameters)
 {
     i2c_access_ctrl_handle_t i2c_access_handle;
-
-    uint16_t tca_output_status = tca_get(i2c0_tca_output);
-    uint16_t tca_input_status  = tca_get(i2c0_tca_input);
+    
+    uint16_t tca_output_status = 0x0000;
+    uint16_t tca_input_status  = 0xFFFF;
 
     while(true)
     {
@@ -119,12 +122,27 @@ static void i2c_handle_task(void* pVParameters)
 
         switch(i2c_access_handle.i2c_action)
         {
+            case TCA_CFG_INPUT:
+                tca_config_mode(i2c0_tca_input , 0xFFFF);
+                break;
+                
+            case TCA_CFG_OUTPUT:
+                tca_config_mode(i2c0_tca_output, 0x0000);
+                break;
+
+            case TCA_REFRESH_INP:
             case TCA_INTR_CHANGE:
                 tca_input_status = tca_get(i2c0_tca_input); // Acess I2C device and get input status
                 break;
+
             case HTTP_TCA_INP_GET:
-                xQueueSend(http_tca_inp_get_queue,&tca_input_status,pdMS_TO_TICKS(300));
+                xQueueSend(http_tca_inp_get_queue,&tca_input_status,pdMS_TO_TICKS(100));
                 printf("Input status: %x\n",tca_input_status);
+                break;
+
+            case TCA_OUT_INIT:
+                tca_set(i2c0_tca_output,0x0000); // Acess I2C device and set input status
+                tca_output_status = 0x0000;                              // Acess I2C device and get input status
                 break;
 
             case HTTP_TCA_OUT_SET:
@@ -133,7 +151,7 @@ static void i2c_handle_task(void* pVParameters)
                 break;
 
             case HTTP_TCA_OUT_GET:
-                xQueueSend(http_tca_out_get_queue,&tca_output_status,pdMS_TO_TICKS(300));
+                xQueueSend(http_tca_out_get_queue,&tca_output_status,pdMS_TO_TICKS(100));
                 printf("Output status: %x\n",tca_output_status);
                 break;
             default:

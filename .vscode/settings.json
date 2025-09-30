@@ -42,7 +42,9 @@
         "stdlib.h": "c",
         "stdint.h": "c",
         "user_http.h": "c",
-        "string.h": "c"
+        "string.h": "c",
+        "mqtt5_client.h": "c",
+        "random": "c"
     },
     "idf.portWin": "COM7",
     "idf.flashType": "UART"

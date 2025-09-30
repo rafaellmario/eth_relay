@@ -17,7 +17,11 @@
 // i2c device data exchange struct
 typedef enum 
 {   
-    TCA_INTR_CHANGE,  // ITCA input change interruption 
+    TCA_CFG_INPUT,
+    TCA_CFG_OUTPUT,
+    TCA_INTR_CHANGE,  // TCA input change interruption
+    TCA_OUT_INIT,
+    TCA_REFRESH_INP,
     HTTP_TCA_INP_GET,     // HTTP input status request 
     HTTP_TCA_OUT_SET,     // HTTP output set pins 
     HTTP_TCA_OUT_GET      // HTTP output status request

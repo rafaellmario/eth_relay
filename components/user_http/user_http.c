@@ -160,7 +160,8 @@ static esp_err_t status_handler(httpd_req_t *req)
     // output queue handle here
     i2c_access_handle.i2c_action = HTTP_TCA_OUT_GET; // send a requisition of output status
     xQueueSend(i2C_access_queue,&i2c_access_handle,pdMS_TO_TICKS(50));
-    xQueueReceive(http_tca_out_get_queue,&(i2c_access_handle.tca_out_stat),pdMS_TO_TICKS(300));
+    xQueueReceive(http_tca_out_get_queue,&(i2c_access_handle.tca_out_stat),pdMS_TO_TICKS(100));
+
     // i2c_access_handle.tca_out_stat = 0x0000;
     ESP_LOGI(TAG,"Received output: %d", i2c_access_handle.tca_out_stat); 
 
@@ -171,7 +172,8 @@ static esp_err_t status_handler(httpd_req_t *req)
     // Data exchange with I2C
     i2c_access_handle.i2c_action = HTTP_TCA_INP_GET; // send a requisition of input status
     xQueueSend(i2C_access_queue,&i2c_access_handle,pdMS_TO_TICKS(50));
-    xQueueReceive(http_tca_inp_get_queue,&(i2c_access_handle.tca_in_stat),pdMS_TO_TICKS(300));
+    xQueueReceive(http_tca_inp_get_queue,&(i2c_access_handle.tca_in_stat),pdMS_TO_TICKS(100));
+
     // i2c_access_handle.tca_in_stat = 0x0000;
     ESP_LOGI(TAG,"Received input: %d", i2c_access_handle.tca_in_stat);       
     // Transfer input data to array 
@@ -232,7 +234,7 @@ static esp_err_t toggle_handler(httpd_req_t *req)
 
                 i2c_access_handle.i2c_action = HTTP_TCA_OUT_SET;
                 i2c_access_handle.tca_out_stat = relayData;
-                xQueueSend(i2C_access_queue,&i2c_access_handle,pdMS_TO_TICKS(50)); // Set TCA output 
+                xQueueSendToFront(i2C_access_queue,&i2c_access_handle,pdMS_TO_TICKS(50)); // Set TCA output 
             }
         }
     }
@@ -287,7 +289,7 @@ httpd_handle_t start_webserver(void)
         };
         httpd_register_uri_handler(server, &uri_toggle);
 
-        ESP_LOGI(TAG, "Servidor iniciado");
+        ESP_LOGI(TAG, "Start web server");
 
         // Create queues for data exchange with i2c
         http_tca_out_get_queue = xQueueCreate(1,sizeof(uint16_t));

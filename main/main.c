@@ -20,20 +20,20 @@
 
 #include "nvs_flash.h"
 
-#include "driver/gpio.h"
-#include "driver/i2c_master.h"
+// #include "driver/gpio.h"
+// #include "driver/i2c_master.h"
 
+// User defined libraries
 #include "user_i2c.h"
 #include "tca9555.h"
-
 #include "user_ethernet.h"
 #include "user_http.h"
-
 #include "user_defs.h"
 
-QueueHandle_t i2C_access_queue;  // Access control to i2c
-QueueHandle_t http_tca_out_get_queue; // Get input status
-QueueHandle_t http_tca_inp_get_queue; // Get input status
+QueueHandle_t i2C_access_queue;        // Access control to i2c bus
+QueueHandle_t http_tca_out_get_queue;  // Http get output status
+QueueHandle_t http_tca_inp_get_queue;  // Http get input status
+QueueHandle_t mqtt_tca_exchange_queue; // data exchange between MQTT and tca expansions
 
 static const char* TAG = "MAIN";
 
