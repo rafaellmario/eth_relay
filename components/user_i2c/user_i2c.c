@@ -31,6 +31,7 @@ i2c_master_dev_handle_t i2c0_tca_input;
 extern QueueHandle_t i2C_access_queue;
 extern QueueHandle_t http_tca_out_get_queue; // Get input status
 extern QueueHandle_t http_tca_inp_get_queue; // Get input status
+extern QueueHandle_t mqtt_tca_exchange_queue;
 
 // --------------------------------------------------------------------------------------------
 //
@@ -112,6 +113,7 @@ static esp_err_t i2c_attach_device(uint16_t device_address, i2c_master_bus_handl
 static void i2c_handle_task(void* pVParameters)
 {
     i2c_access_ctrl_handle_t i2c_access_handle;
+    mqtt_access_ctrl_handle_t mqtt_pub_handle;
     
     uint16_t tca_output_status = 0x0000;
     uint16_t tca_input_status  = 0xFFFF;
@@ -130,9 +132,20 @@ static void i2c_handle_task(void* pVParameters)
                 tca_config_mode(i2c0_tca_output, 0x0000);
                 break;
 
+            
             case TCA_REFRESH_INP:
             case TCA_INTR_CHANGE:
                 tca_input_status = tca_get(i2c0_tca_input); // Acess I2C device and get input status
+
+                // Publish MQTT status on MQTT topic 
+                if(mqtt_tca_exchange_queue != NULL)
+                {
+                    printf("Publishing input on topic\n");
+                    mqtt_pub_handle.mqtt_action = MQTT_TCA_INP_PUB;
+                    mqtt_pub_handle.tca_in_payload = tca_input_status;
+                    xQueueSend(mqtt_tca_exchange_queue,&mqtt_pub_handle,pdMS_TO_TICKS(50));
+                }
+                
                 break;
 
             case HTTP_TCA_INP_GET:
@@ -142,17 +155,38 @@ static void i2c_handle_task(void* pVParameters)
 
             case TCA_OUT_INIT:
                 tca_set(i2c0_tca_output,0x0000); // Acess I2C device and set input status
-                tca_output_status = 0x0000;                              // Acess I2C device and get input status
+                tca_output_status = 0x0000;      // Acess I2C device and get input status
                 break;
-
+            
+            case MQTT_TCA_OUT_SET:
             case HTTP_TCA_OUT_SET:
                 tca_set(i2c0_tca_output,i2c_access_handle.tca_out_stat); // Acess I2C device and set input status
                 tca_output_status = tca_get(i2c0_tca_output);            // Acess I2C device and get input status
+
+                // Publish MQTT status on MQTT topic 
+                if(mqtt_tca_exchange_queue != NULL)
+                {
+                    printf("Publishing output on topic\n");
+                    mqtt_pub_handle.mqtt_action = MQTT_TCA_OUT_PUB;
+                    mqtt_pub_handle.tca_out_payload = tca_output_status;
+                    xQueueSend(mqtt_tca_exchange_queue,&mqtt_pub_handle,pdMS_TO_TICKS(50));
+                }
                 break;
 
             case HTTP_TCA_OUT_GET:
                 xQueueSend(http_tca_out_get_queue,&tca_output_status,pdMS_TO_TICKS(100));
                 printf("Output status: %x\n",tca_output_status);
+                break;
+            
+            case MQTT_TCA_INP_GET:
+                mqtt_pub_handle.mqtt_action = MQTT_TCA_INP_PUB;
+                mqtt_pub_handle.tca_in_payload = tca_input_status;
+                xQueueSend(mqtt_tca_exchange_queue,&mqtt_pub_handle,pdMS_TO_TICKS(50));
+                break;
+            case MQTT_TCA_OUT_GET:
+                mqtt_pub_handle.mqtt_action = MQTT_TCA_OUT_PUB;
+                mqtt_pub_handle.tca_out_payload = tca_output_status;
+                xQueueSend(mqtt_tca_exchange_queue,&mqtt_pub_handle,pdMS_TO_TICKS(50));
                 break;
             default:
         };

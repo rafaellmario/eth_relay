@@ -29,11 +29,12 @@
 #include "user_ethernet.h"
 #include "user_http.h"
 #include "user_defs.h"
+#include "user_mqtt.h"
 
-QueueHandle_t i2C_access_queue;        // Access control to i2c bus
-QueueHandle_t http_tca_out_get_queue;  // Http get output status
-QueueHandle_t http_tca_inp_get_queue;  // Http get input status
-QueueHandle_t mqtt_tca_exchange_queue; // data exchange between MQTT and tca expansions
+QueueHandle_t i2C_access_queue = NULL;        // Access control to i2c bus
+QueueHandle_t http_tca_out_get_queue = NULL;  // Http get output status
+QueueHandle_t http_tca_inp_get_queue = NULL;  // Http get input status
+QueueHandle_t mqtt_tca_exchange_queue = NULL; // data exchange between MQTT and tca expansions
 
 static const char* TAG = "MAIN";
 
@@ -104,9 +105,13 @@ void app_main(void)
     // Web server initialization
     if((check_chain.all == 0) && user_eth_con_status())
     {
-        start_webserver( );
+        start_webserver();
     }
 
+    if((check_chain.all == 0) && user_eth_con_status())
+    {
+        user_mqtt_start();
+    }
 
     while(true)
     {

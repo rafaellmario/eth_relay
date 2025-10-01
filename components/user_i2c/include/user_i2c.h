@@ -24,7 +24,10 @@ typedef enum
     TCA_REFRESH_INP,
     HTTP_TCA_INP_GET,     // HTTP input status request 
     HTTP_TCA_OUT_SET,     // HTTP output set pins 
-    HTTP_TCA_OUT_GET      // HTTP output status request
+    HTTP_TCA_OUT_GET,      // HTTP output status request
+    MQTT_TCA_INP_GET,     // HTTP input status request 
+    MQTT_TCA_OUT_SET,     // HTTP output set pins 
+    MQTT_TCA_OUT_GET      // HTTP output status request
 } i2c_action_type_t;
 
 typedef struct i2c_access_ctrl_t

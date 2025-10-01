@@ -11,8 +11,13 @@
 #define ESP_BROKER_PORT 1883
 
 #define RELAY_INPUT_GET   "relay/input/get"
+#define RELAY_INPUT_PUB   "relay/input/pub"
+
 #define RELAY_OUTPUT_SET  "relay/output/set"
 #define RELAY_OUTPUT_GET  "relay/output/get"
+#define RELAY_OUTPUT_PUB  "relay/output/pub"
+
+
 
 #define RELAY_STATUS "relay/status"
 
@@ -26,8 +31,8 @@ typedef enum
 
 typedef struct mqtt_access_ctrl_t
 {
-    uint16_t tca_in_pub;
-    uint16_t tca_out_pub;
+    uint16_t tca_in_payload;
+    uint16_t tca_out_payload;
     mqtt_action_type_h mqtt_action;
 } mqtt_access_ctrl_handle_t;
 
