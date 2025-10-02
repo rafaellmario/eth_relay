@@ -42,7 +42,7 @@ failure_chain_t check_chain;
 
 void app_main(void)
 {
-    esp_err_t err = ESP_OK;
+    esp_err_t err = ESP_OK; //
     check_chain.all = false;
 
     // ----------------------------------------------
@@ -63,7 +63,7 @@ void app_main(void)
     
     // ----------------------------------------------
     // I2C Bus initialization
-    if(check_chain.all == 0)
+    if(!check_chain.bit.nvs_failure)
     {
         ESP_LOGI(TAG,"I2C initialization.");
         err = user_i2c0_init();
@@ -77,7 +77,7 @@ void app_main(void)
     
     // ----------------------------------------------
     // TCA initialization 
-    if(check_chain.all == 0)
+    if(!check_chain.bit.i2c_failure)
     {
         ESP_LOGI(TAG,"TCA initialization.");
         err = tca9555_init();
@@ -90,7 +90,7 @@ void app_main(void)
     
     // ----------------------------------------------
     // Ethernet initialization
-    if(check_chain.all == 0)
+    if(!check_chain.bit.nvs_failure)
     {
         ESP_LOGI(TAG,"Ethernet initialization.");
         err = ethernet_setup();
@@ -101,25 +101,34 @@ void app_main(void)
         }
     }
     
+
     // ----------------------------------------------
-    // Web server initialization
-    if((check_chain.all == 0) && user_eth_con_status())
+    // Web based 
+    if((!check_chain.bit.eth_failure) && (!check_chain.bit.i2c_failure))
     {
-        start_webserver();
+        err = user_mqtt_start();
+        if(err != ESP_OK)
+        {
+            check_chain.bit.eth_failure = true; // There is an error on mqtt initialization
+            ESP_LOGE(TAG,"%s",esp_err_to_name(err));
+        }
     }
 
-    if((check_chain.all == 0) && user_eth_con_status())
-    {
-        user_mqtt_start();
+    // ----------------------------------------------
+    // Web server initialization
+    if(!check_chain.bit.eth_failure)
+    {   
+        start_webserver(check_chain.bit.tca_failure | check_chain.bit.i2c_failure,
+                        "I2C device failure");
     }
+
+    
 
     while(true)
     {
-
         if(check_chain.all != 0)
             ESP_LOGE(TAG,"Device initialization failure ");
 
-           
         vTaskDelay(pdMS_TO_TICKS(1000));
     }
 }
